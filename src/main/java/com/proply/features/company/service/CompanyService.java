@@ -5,6 +5,7 @@ import com.proply.features.company.entity.Company;
 import com.proply.features.company.repository.CompanyRepository;
 import com.proply.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -20,11 +21,11 @@ public class CompanyService {
 
 
         if(repository.findBySlug(dto.slug()).isPresent()){
-            throw new BusinessException("Slug already exists");
+            throw new BusinessException("Slug already exists", HttpStatus.BAD_REQUEST);
         }
 
         if(repository.findByEmail(dto.email()).isPresent()){
-            throw new BusinessException("Email already exists");
+            throw new BusinessException("Email already exists",HttpStatus.BAD_REQUEST);
         }
 
 

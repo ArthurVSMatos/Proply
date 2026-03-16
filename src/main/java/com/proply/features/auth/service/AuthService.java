@@ -8,6 +8,7 @@ import com.proply.features.user.repository.UserRepository;
 import com.proply.shared.exception.BusinessException;
 import com.proply.shared.util.SlugUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -28,10 +29,10 @@ public class AuthService {
         String slug = SlugUtil.generate(dto.companyName());
 
         if (companyRepository.findBySlug(slug).isPresent()) {
-            throw new BusinessException("Company slug already exists");
+            throw new BusinessException("Company slug already exists", HttpStatus.BAD_REQUEST);
         }
         if (userRepository.findByEmail(dto.email()).isPresent()) {
-            throw new BusinessException("Email already registered");
+            throw new BusinessException("Email already registered",HttpStatus.BAD_REQUEST);
         }
 
 
