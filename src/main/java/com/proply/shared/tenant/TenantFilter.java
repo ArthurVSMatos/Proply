@@ -26,7 +26,7 @@ public class TenantFilter extends HttpFilter {
         String path = request.getRequestURI();
 
         // Se for endpoint público, ignora
-        if (path.startsWith("/login") || path.startsWith("/health")) {
+        if (path.startsWith("/login") || path.startsWith("/health")|| path.startsWith("/auth")) {
             chain.doFilter(request, response);
             return;
         }

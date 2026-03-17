@@ -1,5 +1,7 @@
 package com.proply.features.auth.service;
 
+import com.proply.config.security.JwtService;
+import com.proply.features.auth.dto.LoginRequestDTO;
 import com.proply.features.auth.dto.RegisterRequestDTO;
 import com.proply.features.company.entity.Company;
 import com.proply.features.company.repository.CompanyRepository;
@@ -18,6 +20,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private final JwtService jwtService;
+
 
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
@@ -58,4 +63,20 @@ public class AuthService {
 
         userRepository.save(user);
     }
+
+    public String login (LoginRequestDTO dto){
+
+        User user =
+    userRepository.findByEmail(dto.email())
+            .orElseThrow(() -> new BusinessException("invalid credentials",HttpStatus.UNAUTHORIZED));
+
+        if(!passwordEncoder.matches(dto.password(), user.getPassword())) {
+            throw new BusinessException("invalid credentials",HttpStatus.UNAUTHORIZED);
+        }
+        return
+                jwtService.generateToken(user.getEmail());
+
+    }
+
+
 }

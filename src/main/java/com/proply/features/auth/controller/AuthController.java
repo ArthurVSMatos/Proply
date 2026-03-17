@@ -1,5 +1,7 @@
 package com.proply.features.auth.controller;
 
+import com.proply.features.auth.dto.LoginRequestDTO;
+import com.proply.features.auth.dto.LoginResponseDTO;
 import com.proply.features.auth.dto.RegisterRequestDTO;
 import com.proply.features.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -17,5 +19,12 @@ public class AuthController {
     public void register(@RequestBody @Valid RegisterRequestDTO dto) {
 
         service.register(dto);
+    }
+
+    @PostMapping("/login")
+    public LoginResponseDTO login(@RequestBody @Valid LoginRequestDTO dto) {
+
+        String token = service.login(dto);
+        return new LoginResponseDTO(token);
     }
 }

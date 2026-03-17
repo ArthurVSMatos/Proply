@@ -1,33 +1,45 @@
-HELP.md
+# ==========================================
+# 1. COMPILAÇÃO E MAVEN
+# ==========================================
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+HELP.md
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Logs da aplicação
+*.log
+logs/
 
-### IntelliJ IDEA ###
-.idea
+# ==========================================
+# 2. INTELLIJ IDEA (A tua IDE)
+# ==========================================
+.idea/
 *.iws
 *.iml
 *.ipr
+out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# ==========================================
+# 3. SISTEMA OPERACIONAL
+# ==========================================
+.DS_Store
+Thumbs.db
 
-### VS Code ###
-.vscode/
+# ==========================================
+# 4. SEGURANÇA MÁXIMA (Proteção de Dados)
+# ==========================================
+# Impede que subas ficheiros com senhas, chaves de API e tokens JWT
+.env
+*.env
+.env.*
+application-secret.yml
+application-secret.properties
+application-dev.yml
+secrets/
+*.pem
+*.key

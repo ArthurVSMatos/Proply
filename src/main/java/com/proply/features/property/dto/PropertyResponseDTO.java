@@ -11,4 +11,5 @@ public record PropertyResponseDTO(
         String type,
         String status,
         String companyName // Apenas o nome, não o objeto inteiro!
-) {}
+) {
+}
