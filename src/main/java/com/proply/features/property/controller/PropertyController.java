@@ -2,14 +2,16 @@ package com.proply.features.property.controller;
 
 import com.proply.features.property.dto.CreatePropertyDTO;
 import com.proply.features.property.dto.PropertyResponseDTO;
-import com.proply.features.property.entity.Property;
+import com.proply.features.property.dto.UpdatePropertyDTO;
 import com.proply.features.property.service.PropertyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/properties")
@@ -18,27 +20,38 @@ public class PropertyController {
 
     private final PropertyService propertyService;
 
+    // ✅ CREATE
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED) // Devolve 201 em vez de 200
+    @ResponseStatus(HttpStatus.CREATED)
     public PropertyResponseDTO create(@RequestBody @Valid CreatePropertyDTO dto) {
-
-        // 1. A Service cria a propriedade e devolve a entidade completa
-        Property savedProperty = propertyService.create(dto);
-
-        // 2. Mapeamos a Entidade para o teu DTO seguro
-        return new PropertyResponseDTO(
-                savedProperty.getId(),
-                savedProperty.getTitle(),
-                savedProperty.getPrice(),
-                savedProperty.getCity(),
-                savedProperty.getType().name(),   // Usa .name() se type for um Enum
-                savedProperty.getStatus().name(), // Usa .name() se status for um Enum
-                savedProperty.getCompany().getName() // Vazamento resolvido! Pegamos só o nome.
-        );
+        return propertyService.create(dto);
     }
 
+    // ✅ GET ALL (com paginação)
     @GetMapping
-    public List<PropertyResponseDTO> list() {
-        return propertyService.list();
+    public Page<PropertyResponseDTO> list(Pageable pageable) {
+        return propertyService.list(pageable);
+    }
+
+    // ✅ GET BY ID (seguro multi-tenant)
+    @GetMapping("/{id}")
+    public PropertyResponseDTO getById(@PathVariable UUID id) {
+        return propertyService.getById(id);
+    }
+
+    // ✅ UPDATE
+    @PutMapping("/{id}")
+    public PropertyResponseDTO update(
+            @PathVariable UUID id,
+            @RequestBody @Valid UpdatePropertyDTO dto
+    ) {
+        return propertyService.update(id, dto);
+    }
+
+    // ✅ DELETE
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id) {
+        propertyService.delete(id);
     }
 }

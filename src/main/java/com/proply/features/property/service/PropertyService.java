@@ -2,16 +2,20 @@ package com.proply.features.property.service;
 
 import com.proply.features.property.dto.CreatePropertyDTO;
 import com.proply.features.property.dto.PropertyResponseDTO;
+import com.proply.features.property.dto.UpdatePropertyDTO;
 import com.proply.features.property.entity.Property;
 import com.proply.features.property.repository.PropertyRepository;
+import com.proply.shared.exception.BusinessException;
 import com.proply.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.proply.features.property.enums.PropertyType;
 import com.proply.features.property.enums.PropertyStatus;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -20,66 +24,111 @@ public class PropertyService {
 
     private final PropertyRepository propertyRepository;
 
-    public Property create(CreatePropertyDTO dto) {
-        // 1. Recupera o tenant do contexto
+    public PropertyResponseDTO create(CreatePropertyDTO dto) {
         var tenant = TenantContext.getTenant();
+        if (tenant == null) throw new BusinessException("Tenant context not found", HttpStatus.NOT_FOUND);
 
-        // Validação de segurança: Nunca salvar sem um tenant!
-        if (tenant == null) {
-            throw new RuntimeException("Tenant context not found. Make sure to provide X-Company-Slug header.");
-        }
-
-        // 2. Construção da entidade
         Property property = Property.builder()
-                // Removi o UUID.randomUUID() para deixar o @GeneratedValue trabalhar
                 .title(dto.title())
                 .description(dto.description())
                 .price(dto.price())
                 .address(dto.address())
                 .city(dto.city())
                 .state(dto.state())
-                .type(PropertyType.valueOf(dto.type().toUpperCase())) // toUpperCase previne erros de digitação
-                .status(PropertyStatus.valueOf(dto.status().toUpperCase()))
-                .company(tenant) // Aqui injetamos o tenant automaticamente
+                .type(parseType(dto.type()))
+                .status(parseStatus(dto.status()))
+                .company(tenant)
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return propertyRepository.save(property);
+        return toResponse(propertyRepository.save(property));
     }
 
-    public Property getById(UUID id) {
+    public PropertyResponseDTO getById(UUID id) {
+        var companyId = getCompanyId();
+
+        var property = propertyRepository
+                .findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new BusinessException("Property not found",HttpStatus.NOT_FOUND));
+
+        return toResponse(property);
+    }
+
+    public Page<PropertyResponseDTO> list(Pageable pageable) {
+        var companyId = getCompanyId();
+
+        return propertyRepository
+                .findAllByCompanyId(companyId, pageable)
+                .map(this::toResponse);
+    }
+
+    private UUID getCompanyId() {
         var tenant = TenantContext.getTenant();
+        if (tenant == null) throw new BusinessException("Tenant context not found", HttpStatus.NOT_FOUND);
+        return tenant.getId();
+    }
 
-        // Procuramos a propriedade pelo ID
-        Property property = propertyRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Property not found"));
+    private PropertyType parseType(String type) {
+        try {
+            return PropertyType.valueOf(type.toUpperCase());
+        } catch (Exception e) {
+            throw new BusinessException("Invalid property type", HttpStatus.BAD_REQUEST);
+        }
+    }
 
-        // VALIDACÃO DE ISOLAMENTO:
-        // Se a empresa da propriedade for diferente da empresa do contexto atual...
-        if (!property.getCompany().getId().equals(tenant.getId())) {
-            // Bloqueamos o acesso!
-            throw new RuntimeException("Acesso negado: Esta propriedade pertence a outra empresa.");
+    private PropertyStatus parseStatus(String status) {
+        try {
+            return PropertyStatus.valueOf(status.toUpperCase());
+        } catch (Exception e) {
+            throw new BusinessException("Invalid property status", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private PropertyResponseDTO toResponse(Property p) {
+        return new PropertyResponseDTO(
+                p.getId(),
+                p.getTitle(),
+                p.getPrice(),
+                p.getCity(),
+                p.getType().name(),
+                p.getStatus().name(),
+                p.getCompany().getName()
+        );
+    }
+    public PropertyResponseDTO update(UUID id, UpdatePropertyDTO dto) {
+        var companyId = getCompanyId();
+
+        Property property = propertyRepository
+                .findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new BusinessException("Property not found", HttpStatus.NOT_FOUND));
+
+        // 🔒 regra de negócio (nível empresa)
+        if (property.getStatus() == PropertyStatus.SOLD) {
+            throw new BusinessException("Sold properties cannot be updated", HttpStatus.BAD_REQUEST);
         }
 
-        return property;
-    }
-    public List<PropertyResponseDTO> list() {
-        var tenant = TenantContext.getTenant();
-        if (tenant == null) return List.of();
+        property.setTitle(dto.title());
+        property.setDescription(dto.description());
+        property.setPrice(dto.price());
+        property.setAddress(dto.address());
+        property.setCity(dto.city());
+        property.setState(dto.state());
+        property.setType(parseType(dto.type()));
+        property.setStatus(parseStatus(dto.status()));
 
-        List<Property> properties = propertyRepository.findByCompanyId(tenant.getId());
-
-        // Convertemos cada Property em PropertyResponseDTO
-        return properties.stream()
-                .map(p -> new PropertyResponseDTO(
-                        p.getId(),
-                        p.getTitle(),
-                        p.getPrice(),
-                        p.getCity(),
-                        p.getType().name(),
-                        p.getStatus().name(),
-                        p.getCompany().getName() // Expondo apenas o nome da empresa
-                ))
-                .toList();
+        return toResponse(propertyRepository.save(property));
     }
+    public void delete(UUID id) {
+        // 1. Quem é a empresa?
+        var companyId = getCompanyId();
+
+        // 2. Tenta encontrar o imóvel dessa empresa
+        Property property = propertyRepository
+                .findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new RuntimeException("Property not found or access denied"));
+
+        // 3. Se passou pela linha de cima, o imóvel existe e é dele. Pode apagar!
+        propertyRepository.delete(property);
+    }
+
 }
