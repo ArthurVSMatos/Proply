@@ -4,6 +4,12 @@ Proply é uma API RESTful desenvolvida com Spring Boot para gestão de imóveis 
 
 ---
 
+### 🛠️ Diferenciais Técnicos
+- **Multi-tenancy com ThreadLocal:** Isolamento de contexto via `ThreadLocal`, garantindo que o `TenantContext` seja limpo após cada requisição para evitar vazamento de dados (Context Leak).
+- **Segurança Anti-IDOR:** Consultas ao banco de dados sempre vinculadas ao `companyId`, impedindo que um usuário acesse recursos de outro tenant através da manipulação de UUIDs.
+- **Database Migrations:** Versionamento de banco de dados com **Flyway**, garantindo integridade e evolução consistente do esquema.
+- **Fail-Fast Validations:** Validação de regras de negócio (como unicidade de Slug e Email) diretamente na camada de Service para respostas rápidas e controladas.
+
 ## 🚀 Funcionalidades
 
 - 🔐 Autenticação Stateless com JWT
@@ -105,9 +111,7 @@ Use ferramentas como Postman ou Insomnia.
 Bearer <seu-token-jwt>
 
 🚀 Próximas Melhorias (Roadmap)
-[ ] Tratamento global de exceções (Global Exception Handler) para padronizar erros da API.
 
-[ ] Regras de Negócio: Bloquear a edição e exclusão de imóveis com status SOLD.
 
 [ ] Upload de imagens de imóveis (Integração com AWS S3 / Cloudinary).
 
