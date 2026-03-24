@@ -14,6 +14,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+/**
+ * Filtro de interceptacao de requisições para validação de JWT e isolamento de Tenant.
+ * OncePerRequestFilter e umaclasse base abstrata do Spring Framework que garante que um filtro personalizado seja executado exatamente uma vez por requisição HTTP
+ * Herdando de OncePerRequestFilter garantimos que a lógica execute apenas uma vez por request.
+ */
 
 @Component
 @RequiredArgsConstructor
@@ -29,12 +34,12 @@ public class JwtFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        // 1. Extraímos o cabeçalho Authorization da requisição
+        // 1. EXTRAÇÃO DO HEADER: Padrão RFC 6750 (Bearer Token)
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String email;
 
-        // Se não houver token (ex: rotas públicas como /auth/login), passamos para o próximo filtro
+        // Validação de "Fail-Fast": Se não houver token, segue para o próximo filtro (ex: login ou rotas públicas)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -45,12 +50,13 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             email = jwtService.extractEmail(jwt);
         } catch (Exception e) {
+            // Em caso de token malformado ou erro na extração, interrompemos aqui por segurança
             filterChain.doFilter(request, response);
             return;
-        } // Extrai o e-mail que guardámos no token
+        }
 
         try {
-            // 3. Verificamos se temos um e-mail e se o utilizador ainda NÃO está autenticado no contexto atual
+            // 3. VALIDAÇÃO DE ESTADO: Verifica se o email existe e se o SecurityContext ainda está vazio
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 // Procuramos o utilizador no banco de dados
@@ -59,34 +65,39 @@ public class JwtFilter extends OncePerRequestFilter {
                 // Se o utilizador existir e o token for válido
                 if (user != null && jwtService.isTokenValid(jwt, user.getEmail())) {
 
-                    // --- PARTE A: AUTENTICAÇÃO DO SPRING SECURITY ---
-                    // Criamos o "crachá" de acesso dizendo que ele está validado
+                    // --- PARTE A: AUTENTICAÇÃO SPRING SECURITY ---
+                    // Criamos o objeto de autenticação.
+                    // Nota: O 'null' final seriam as Authorities/Roles (RBAC) para controle de permissões.
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            null // Aqui futuramente podes colocar as permissões (user.getAuthorities())
+                            null
                     );
 
+                    // Adiciona detalhes da requisição (IP, SessionID) ao objeto de autenticação
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken); // Guarda o crachá no Spring
+
+                    // Injeta o usuário autenticado no contexto global do Spring para esta Thread
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
 
 
-                    // --- PARTE B: A MÁGICA DO MULTI-TENANT ---
-                    // Pegamos a empresa atrelada a este utilizador e guardamos no nosso cofre
+                    // --- PARTE B: ESTRATÉGIA MULTI-TENANT (Isolamento de Dados) ---
+                    // Se o usuário pertence a uma empresa, "setamos" o ID/Entidade no ThreadLocal.
+                    // Isso garante que todos os SELECTs e INSERTs subsequentes sejam filtrados por essa empresa.
                     if (user.getCompany() != null) {
                         TenantContext.setTenant(user.getCompany());
                     }
                 }
             }
 
-            // 4. Deixamos a requisição seguir o seu caminho (ex: ir para o PropertyController)
+            // 4. CONTINUIDADE: Permite que a requisição siga para o Controller
             filterChain.doFilter(request, response);
 
         } finally {
-            // 5. LIMPEZA DE SEGURANÇA (MUITO IMPORTANTE)
-            // O bloco 'finally' garante que, independentemente do que aconteça no Controller (sucesso ou erro),
-            // o contexto da empresa é limpo no final da requisição. Isso evita que os dados da Empresa A
-            // vazem para a próxima pessoa que usar esta mesma Thread do servidor!
+            // 5. HIGIENE DE THREAD (CRÍTICO):
+            // Como servidores como Tomcat reutilizam Threads (Thread Pool), se não limparmos o TenantContext,
+            // a próxima requisição de OUTRO cliente poderia, teoricamente, acessar dados desta empresa.
+            // O bloco 'finally' garante a limpeza mesmo em caso de Runtime Exceptions no Controller.
             TenantContext.clear();
         }
     }

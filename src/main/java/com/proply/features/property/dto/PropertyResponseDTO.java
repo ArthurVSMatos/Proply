@@ -12,4 +12,16 @@ public record PropertyResponseDTO(
         String status,
         String companyName // Apenas o nome, não o objeto inteiro!
 ) {
+    // Construtor compacto para converter a Entity direto para DTO
+    public PropertyResponseDTO(com.proply.features.property.entity.Property p) {
+        this(
+                p.getId(),
+                p.getTitle(),
+                p.getPrice(),
+                p.getCity(),
+                p.getType().toString(),
+                p.getStatus().toString(),
+                p.getCompany().getName()
+        );
+    }
 }

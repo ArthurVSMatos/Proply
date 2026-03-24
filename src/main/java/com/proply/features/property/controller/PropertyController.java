@@ -1,6 +1,6 @@
 package com.proply.features.property.controller;
 
-import com.proply.features.property.dto.CreatePropertyDTO;
+import com.proply.features.property.dto.PropertyRequestDTO;
 import com.proply.features.property.dto.PropertyResponseDTO;
 import com.proply.features.property.dto.UpdatePropertyDTO;
 import com.proply.features.property.service.PropertyService;
@@ -20,20 +20,19 @@ public class PropertyController {
 
     private final PropertyService propertyService;
 
-    // ✅ CREATE
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PropertyResponseDTO create(@RequestBody @Valid CreatePropertyDTO dto) {
+    public PropertyResponseDTO create(@RequestBody @Valid PropertyRequestDTO dto) { // 👈 Use PropertyRequestDTO
         return propertyService.create(dto);
     }
 
-    // ✅ GET ALL (com paginação)
+    // ✅ GET ALL (com paginação e carimbo de tenant)
     @GetMapping
     public Page<PropertyResponseDTO> list(Pageable pageable) {
         return propertyService.list(pageable);
     }
 
-    // ✅ GET BY ID (seguro multi-tenant)
+    // ✅ GET BY ID
     @GetMapping("/{id}")
     public PropertyResponseDTO getById(@PathVariable UUID id) {
         return propertyService.getById(id);
